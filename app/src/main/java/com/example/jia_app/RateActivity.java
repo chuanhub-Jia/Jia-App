@@ -24,6 +24,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 public class RateActivity extends AppCompatActivity implements Runnable{
     private final String TAG = "Rate";
@@ -33,12 +36,27 @@ public class RateActivity extends AppCompatActivity implements Runnable{
     EditText rmb;
     TextView show;
     Handler handler;
+    String updateDate = "";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        Thread thread = new Thread(this);
-        thread.start();
+        SharedPreferences sp = getSharedPreferences("myrate", Activity.MODE_PRIVATE);
+        dollarRate = sp.getFloat("dollar_rate",dollarRate);
+        euroRate = sp.getFloat("euro_rate",euroRate);
+        wonRate = sp.getFloat("won_rate",wonRate);
+        updateDate = sp.getString("update_date",updateDate);
+        Date today = Calendar.getInstance().getTime();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        final String todayStr = sdf.format(today);
+        if(!todayStr.equals(updateDate)){
+            Log.i(TAG, "onCreate: 需要更新");
+            //开启子线程
+            Thread t = new Thread(this);
+            t.start();
+        }else{
+            Log.i(TAG, "onCreate: 不需要更新");
+        }
         handler = new Handler(){
             @Override
             public void handleMessage(@NonNull Message msg) {
@@ -55,14 +73,15 @@ public class RateActivity extends AppCompatActivity implements Runnable{
                     Toast.makeText(RateActivity.this, "汇率已更新", Toast.LENGTH_SHORT).show();
                 }
                 super.handleMessage(msg);
+                SharedPreferences sp = getSharedPreferences("myrate", Activity.MODE_PRIVATE);
+                SharedPreferences.Editor editor = sp.edit();
+                editor.putFloat("dollar_rate",dollarRate);
+                editor.putFloat("euro_rate",euroRate);
+                editor.putFloat("won_rate",wonRate);
+                editor.putString("update_date",todayStr);
+                editor.apply();
             }
         };
-        SharedPreferences sp = getSharedPreferences("myrate", Activity.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sp.edit();
-        editor.putFloat("dollar_rate",dollarRate);
-        editor.putFloat("euro_rate",euroRate);
-        editor.putFloat("won_rate",wonRate);
-        editor.apply();
 
         Log.i(TAG, "onCreate: sp dollarRate=" + dollarRate);
         Log.i(TAG, "onCreate: sp euroRate=" + euroRate);
@@ -153,11 +172,11 @@ public class RateActivity extends AppCompatActivity implements Runnable{
             Log.i(TAG, "run: " + doc.title());
             Elements tables = doc.getElementsByTag("table");
 
-            Element table6 = tables.get(5);
+            Element table6 = tables.get(0);
             //Log.i(TAG, "run: table6=" + table6);
             //获取TD中的数据
             Elements tds = table6.getElementsByTag("td");
-            for(int i=0;i<tds.size();i+=8){
+            for(int i=0;i<tds.size();i+=6){
                 Element td1 = tds.get(i);
                 Element td2 = tds.get(i+5);
 
