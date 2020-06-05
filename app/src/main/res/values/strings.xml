@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">Jia-App</string>
+    <string name="texShow1">Hello</string>
+    <string name="iptText">enter</string>
+    <string name="textShow1">this is my App</string>
+    <string name="InPut1">please input</string>
+    <string name="But1">enter</string>
+    <string name="btn_label">Button</string>
+    <string name="btn_dollar_label">Dollar</string>
+    <string name="btn_euro_label">Euro</string>
+    <string name="btn_won_label">Won</string>
+    <string name="rmb_hint_label">Input RMB</string>
 </resources>
