@@ -15,13 +15,15 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 
 public class RateActivity extends AppCompatActivity implements Runnable{
     private final String TAG = "Rate";
@@ -37,23 +39,30 @@ public class RateActivity extends AppCompatActivity implements Runnable{
         super.onCreate(savedInstanceState);
         Thread thread = new Thread(this);
         thread.start();
-        handler =new Handler(){
+        handler = new Handler(){
             @Override
             public void handleMessage(@NonNull Message msg) {
 
                 if(msg.what==5){
-                    String str = (String) msg.obj;
-                    Log.i(TAG, "handleMessage: getMessage msg = " + str);
-                    show.setText(str);
+                    Bundle bundle = (Bundle) msg.obj;
+                    dollarRate = bundle.getFloat("dollar-rate");
+                    euroRate = bundle.getFloat("euro-rate");
+                    wonRate = bundle.getFloat("won-rate");
+
+                    Log.i(TAG, "handleMessage: dollarRate:" + dollarRate);
+                    Log.i(TAG, "handleMessage: euroRate:" + euroRate);
+                    Log.i(TAG, "handleMessage: wonRate:" + wonRate);
+                    Toast.makeText(RateActivity.this, "汇率已更新", Toast.LENGTH_SHORT).show();
                 }
                 super.handleMessage(msg);
             }
         };
-        SharedPreferences sharedPreferences = getSharedPreferences("myrate", Activity.MODE_PRIVATE);
-
-        dollarRate = sharedPreferences.getFloat("dollar_rate",0.0f);
-        euroRate = sharedPreferences.getFloat("euro_rate",0.0f);
-        wonRate = sharedPreferences.getFloat("won_rate",0.0f);
+        SharedPreferences sp = getSharedPreferences("myrate", Activity.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sp.edit();
+        editor.putFloat("dollar_rate",dollarRate);
+        editor.putFloat("euro_rate",euroRate);
+        editor.putFloat("won_rate",wonRate);
+        editor.apply();
 
         Log.i(TAG, "onCreate: sp dollarRate=" + dollarRate);
         Log.i(TAG, "onCreate: sp euroRate=" + euroRate);
@@ -136,24 +145,43 @@ public class RateActivity extends AppCompatActivity implements Runnable{
                 e.printStackTrace();
             }
         }
-
-        URL url = null;
+        Bundle bundle = new Bundle();
+        Document doc = null;
         try {
-            url = new URL("http://www.usd-cny.com/icbc.htm");
-            HttpURLConnection http = (HttpURLConnection) url.openConnection();
-            InputStream in = http.getInputStream();
+            String url = "http://www.usd-cny.com/bankofchina.htm";
+            doc = Jsoup.connect(url).get();
+            Log.i(TAG, "run: " + doc.title());
+            Elements tables = doc.getElementsByTag("table");
 
-            String html = inputStream2String(in);
-            Log.i(TAG, "run: html=" + html);
+            Element table6 = tables.get(5);
+            //Log.i(TAG, "run: table6=" + table6);
+            //获取TD中的数据
+            Elements tds = table6.getElementsByTag("td");
+            for(int i=0;i<tds.size();i+=8){
+                Element td1 = tds.get(i);
+                Element td2 = tds.get(i+5);
 
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
+                String str1 = td1.text();
+                String val = td2.text();
+
+                Log.i(TAG, "run: " + str1 + "==>" + val);
+
+                float v = 100f / Float.parseFloat(val);
+                if("美元".equals(str1)){
+                    bundle.putFloat("dollar-rate", v);
+                }else if("欧元".equals(str1)){
+                    bundle.putFloat("euro-rate", v);
+                }else if("韩国元".equals(str1)){
+                    bundle.putFloat("won-rate", v);
+                }
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         Message msg = handler.obtainMessage(5);
-        msg.obj = "Hello from run()";
+        msg.obj = bundle;
         handler.sendMessage(msg);
     }
 
